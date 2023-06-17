@@ -1,3 +1,4 @@
+# Modified version of Image Saliency example to include directional cues
 # Highlighting Areas of Interest in an Image Using Saliency
 
 Quantify and visualize where people are likely to look in an image.

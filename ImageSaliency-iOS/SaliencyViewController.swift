@@ -11,11 +11,20 @@ import Vision
 
 class SaliencyViewController: UIViewController {
 
+    @IBOutlet weak var label: UILabel!
+
     var observation: VNSaliencyImageObservation? {
         didSet {
             DispatchQueue.main.async { [weak self] in
                 self?.updateLayersContent()
+                self?.calculatePosition()
             }
+        }
+    }
+
+    var labelString: String? {
+        didSet {
+            label.text = labelString
         }
     }
 
@@ -37,6 +46,56 @@ class SaliencyViewController: UIViewController {
                 }
             }
         }
+    }
+
+    func calculatePosition() {
+        guard let observation = self.observation else {
+            return
+        }
+
+        guard let object = observation.salientObjects?.first else {
+            return
+        }
+
+        let rect = CGRectApplyAffineTransform(object.boundingBox, self.salientObjectsPathTransform)
+        let frame = salientObjectsLayer.bounds
+
+        let midX = frame.midX - rect.midX
+        let midY = frame.midY - rect.midY
+
+        let xDf = midX / frame.width
+        let yDf = midY / frame.height
+
+        let xThreshold = 0.08
+        let yThreshold = 0.05
+
+        var texts: [String] = []
+        if xDf < -xThreshold {
+            texts.append("Move right")
+        } else if xDf > xThreshold {
+            texts.append("Move left")
+        }
+
+        if yDf < -yThreshold {
+            texts.append("Move down")
+        } else if yDf > yThreshold {
+            texts.append("Move up")
+        }
+
+        let offsetFrame = frame.insetBy(dx: 100, dy: 100)
+        if offsetFrame.origin.x > rect.origin.x && offsetFrame.origin.x+offsetFrame.width < rect.origin.x+rect.width {
+            texts.append("H: Move away")
+        }
+
+        if offsetFrame.origin.y > rect.origin.y && offsetFrame.origin.y+offsetFrame.height < rect.origin.y+rect.height {
+            texts.append("V: Move away")
+        }
+
+        if texts.isEmpty {
+            texts.append("Hold still")
+        }
+
+        labelString = texts.joined(separator: ",")
     }
 
     func updateLayersGeometry() {
@@ -100,11 +159,14 @@ class SaliencyViewController: UIViewController {
         layer.videoGravity = .resizeAspectFill
         layer.addSublayer(saliencyMaskLayer)
         salientObjectsLayer.strokeColor = #colorLiteral(red: 1, green: 0.5781051517, blue: 0, alpha: 1)
+        salientObjectsLayer.lineWidth = 5
         salientObjectsLayer.fillColor = nil
         layer.addSublayer(salientObjectsLayer)
         view.layer.addSublayer(layer)
         videoLayer = layer
         updateLayersVisibility()
+
+        view.bringSubviewToFront(label)
         
         // Set default values for toolbar items.
         viewModeToggle.selectedSegmentIndex = userDefaults.viewMode
